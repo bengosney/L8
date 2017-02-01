@@ -65,7 +65,7 @@ if __name__ == "__main__":
         data = Data(args)
         c = Processor(data, domains)
         s = Subscriber(args.subscription)
-        s.work(c.work, False)
+        s.work(c.work)
     except (KeyboardInterrupt, SystemExit, StopIteration):
         pass
     except ConnectionError as err:
