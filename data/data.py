@@ -83,28 +83,27 @@ class Data:
         return 'DATE(time) >= "{0}" AND DATE(time) <= "{1}"'.format(self.format_timestamp(self.start_time), self.format_timestamp(self.end_time))
 
     def get_level_sql(self):
-        return 'level IN ("{0}")'.format('","'.join([self.levels.keys[i] for i in self.error_levels if self.error_levels[i]]))
-
-    def get_counts_sql(self):
-        return ', '.join(["SUM(`level` = '%s')" % self.levels.keys[i] for i in self.error_levels if self.error_levels[i]])
+        return '`level` IN ("{0}")'.format('","'.join([self.levels.keys[i] for i in self.error_levels if self.error_levels[i]]))
 
     def domains(self):
         with self.mysql.cursor() as cursor:
-            sql = 'SELECT domain, count(*) as count, {2} FROM `messages` WHERE {0} AND {1} GROUP BY domain ORDER BY count DESC'.format(
+            sql = 'SELECT domain, count(*) as count, `level` FROM `messages` WHERE {0} AND {1} GROUP BY domain, `level` ORDER BY count DESC'.format(
                 self.get_time_sql(),
                 self.get_level_sql(),
-                self.get_counts_sql()
             )
             cursor.execute(sql)
-            res = []
+            res = {}
             while True:
                 record = cursor.fetchone()
                 if not record:
                     break
 
-                counts = {self.levels.keys[i]: int(record[i + 2]) for i in self.error_levels if self.error_levels[i]}
-                res.append(self.Domain(record[0], record[1], **counts))
-            return res
+                if record[0] not in res:
+                    res[record[0]] = self.Domain(record[0], self.levels)
+
+                res[record[0]].add_count(record[2], int(record[1]))
+
+            return [domain for domain in res.values()]
 
     def errors(self, host, mode):
         with self.mysql.cursor() as cursor:
@@ -227,10 +226,17 @@ CREATE TABLE `messages` (\n\
         latest = 2
 
     class Domain:
-        def __init__(self, host, error_count, **kwargs):
+        def __init__(self, host, levels):
             self.host = host
-            self.error_count = error_count
-            self.counts = kwargs
+            self.error_count = 0
+            self.counts = {key: 0 for key in levels.keys}
+
+        def add_count(self, level, count):
+            if level not in self.counts:
+                self.counts[level] = 0
+
+            self.counts[level] += count
+            self.error_count = sum(self.counts.values())
 
     class Error:
         def __init__(self, id, file, line, message, level, source, context, count, time, domain):
