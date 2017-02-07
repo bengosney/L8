@@ -85,18 +85,25 @@ class Data:
     def get_level_sql(self):
         return 'level IN ("{0}")'.format('","'.join([self.levels.keys[i] for i in self.error_levels if self.error_levels[i]]))
 
+    def get_counts_sql(self):
+        return ', '.join(["SUM(`level` = '%s')" % self.levels.keys[i] for i in self.error_levels if self.error_levels[i]])
+
     def domains(self):
         with self.mysql.cursor() as cursor:
-            cursor.execute('SELECT domain, count(*) as count FROM `messages` WHERE {0} AND {1} GROUP BY domain ORDER BY count DESC'.format(
+            sql = 'SELECT domain, count(*), {2} as count FROM `messages` WHERE {0} AND {1} GROUP BY domain ORDER BY count DESC'.format(
                 self.get_time_sql(),
-                self.get_level_sql())
+                self.get_level_sql(),
+                self.get_counts_sql()
             )
+            cursor.execute(sql)
             res = []
             while True:
                 record = cursor.fetchone()
                 if not record:
                     break
-                res.append(self.Domain(record[0], record[1]))
+
+                counts = {self.levels.keys[i]: int(record[i + 2]) for i in self.error_levels if self.error_levels[i]}
+                res.append(self.Domain(record[0], record[1], **counts))
             return res
 
     def errors(self, host, mode):
@@ -220,10 +227,10 @@ CREATE TABLE `messages` (\n\
         latest = 2
 
     class Domain:
-        def __init__(self, host, error_count):
+        def __init__(self, host, error_count, **kwargs):
             self.host = host
             self.error_count = error_count
-            pass
+            self.counts = kwargs
 
     class Error:
         def __init__(self, id, file, line, message, level, source, context, count, time, domain):
