@@ -38,7 +38,7 @@
 		  <tbody>
 		    <tr ng-repeat="domain in domains"  ng-class="{info: $storage.lastHost == domain.host}">
 		      <td ng-click="getErrors(domain.host)">{{domain.host}}</td>
-		      <td>{{domain.error_count}}</td>
+		      <td>{{domain.error_count - domain.counts.DEBUG}}</td>
 		    </tr>
 		  </tbody>
 		</table>
