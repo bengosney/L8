@@ -90,7 +90,7 @@ class Data:
 
     def domains(self):
         with self.mysql.cursor() as cursor:
-            sql = 'SELECT domain, count(*), {2} as count FROM `messages` WHERE {0} AND {1} GROUP BY domain ORDER BY count DESC'.format(
+            sql = 'SELECT domain, count(*) as count, {2} FROM `messages` WHERE {0} AND {1} GROUP BY domain ORDER BY count DESC'.format(
                 self.get_time_sql(),
                 self.get_level_sql(),
                 self.get_counts_sql()
