@@ -116,6 +116,15 @@ class L8 {
         set_error_handler([get_called_class(), 'error_handler']);
     }
 
+    public static function set_exception_handler() {
+        set_exception_handler([get_called_class(), 'exception_handler']);
+    }
+
+    public static function set_handlers() {
+        static::set_error_handler();
+        static::set_exception_handler();
+    }
+
     public static function error_handler($errno, $message, $file = '', $line = 0,
                                          $context = array()) {
         if (!is_array($context)) {
