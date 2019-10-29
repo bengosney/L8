@@ -42,6 +42,9 @@ class L8 {
     public static $db = 1;
     public static $channel = 'L8';      // NB will also use <$channel>_seq
 
+    protected static $error_handlers = [];
+    protected static $exception_handlers = [];
+
     // syslog facilities
     const DEBUG     = 1;
     const INFO      = 2;
@@ -112,21 +115,22 @@ class L8 {
 
     /* -- */
 
-    public static function set_error_handler() {
+    public static function set_error_handler($error_handlers = []) {
+        static::$error_handlers = $error_handlers;
         set_error_handler([get_called_class(), 'error_handler']);
     }
 
-    public static function set_exception_handler() {
+    public static function set_exception_handler($exception_handlers = []) {
+        static::$exception_handlers = $exception_handlers;
         set_exception_handler([get_called_class(), 'exception_handler']);
     }
 
-    public static function set_handlers() {
-        static::set_error_handler();
-        static::set_exception_handler();
+    public static function set_handlers($error_handlers = [], $exception_handlers = []) {
+        static::set_error_handler($error_handlers);
+        static::set_exception_handler($exception_handlers);
     }
 
-    public static function error_handler($errno, $message, $file = '', $line = 0,
-                                         $context = array()) {
+    public static function error_handler($errno, $message, $file = '', $line = 0, $context = array()) {
         if (!is_array($context)) {
             $context = array($context);
         }
@@ -153,14 +157,19 @@ class L8 {
             ? $map[$errno]
             : array('E_UNKOWN(' . $errno . ')', static::ERROR);
 
-        return static::write($level, static::ERROR_HANDLER, $prefix . ':' .
-            $message, $file, $line, $context);
+        static::write($level, static::ERROR_HANDLER, $prefix . ':' . $message, $file, $line, $context);
+
+        foreach (static::$error_handlers as $handler) {
+            call_user_func($handler, $errno, $message, $file, $line, $context);
+        }
     }
 
     public static function exception_handler($e) {
-        return static::write(static::ERROR, static::EXCEPTION_HANDLER,
-            $e->getMessage(),
-            $e->getFile(), $e->getLine(), array());
+        static::write(static::ERROR, static::EXCEPTION_HANDLER, $e->getMessage(), $e->getFile(), $e->getLine(), array());
+
+        foreach (static::$exception_handlers as $handler) {
+            call_user_func($handler, $e);
+        }
     }
 
     /* -- */
